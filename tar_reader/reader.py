@@ -13,8 +13,7 @@ class SupportedFormats(Enum):
 
 
 def convert_raw_to_png(raw_data, resolution=(1280, 720), target_format=SupportedFormats.PNG):
-    # pixel_format = f"{resolution[0]}x{resolution[1]}B"
-    pixel_format = "B" * resolution[0] * resolution[1]
+    pixel_format = f"{resolution[0] * resolution[1]}B"
     unpacked_data = struct.unpack(pixel_format, raw_data)
 
     image = Image.new(GRAYSCALE, resolution)
