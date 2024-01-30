@@ -1,6 +1,7 @@
 import io
-import struct
+# import struct
 import tarfile
+from time import perf_counter
 from PIL import Image
 from enum import Enum
 
@@ -13,11 +14,11 @@ class SupportedFormats(Enum):
 
 
 def convert_raw_to_png(raw_data, resolution=(1280, 720), target_format=SupportedFormats.PNG):
-    pixel_format = f"{resolution[0] * resolution[1]}B"
-    unpacked_data = struct.unpack(pixel_format, raw_data)
+    # pixel_format = f"{resolution[0] * resolution[1]}B"
+    # unpacked_data = struct.unpack(pixel_format, raw_data)
 
-    image = Image.new(GRAYSCALE, resolution)
-    image.putdata(unpacked_data)
+    image = Image.frombytes(GRAYSCALE, resolution, raw_data)
+    # image.putdata(unpacked_data)
 
     image_buffer = io.BytesIO()
     image.save(image_buffer, format=target_format.value)
@@ -52,4 +53,8 @@ if __name__ == '__main__':
     with open('..\\resources\\example_frames.lst') as f:
         image_list = [f.strip() for f in f.readlines()]
 
+    print(f"Processing {len(image_list)} files...")
+    start_time = perf_counter()
     process_tar_file(tar_path, output_path, resolution_1280_720, image_list)
+    end_time = perf_counter()
+    print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
