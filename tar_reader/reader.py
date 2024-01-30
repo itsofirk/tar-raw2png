@@ -13,7 +13,8 @@ class SupportedFormats(Enum):
 
 
 def convert_raw_to_png(raw_data, resolution=(1280, 720), target_format=SupportedFormats.PNG):
-    pixel_format = f"{resolution[0]}x{resolution[1]}B"
+    # pixel_format = f"{resolution[0]}x{resolution[1]}B"
+    pixel_format = "B" * resolution[0] * resolution[1]
     unpacked_data = struct.unpack(pixel_format, raw_data)
 
     image = Image.new(GRAYSCALE, resolution)
@@ -29,21 +30,20 @@ def convert_raw_to_png(raw_data, resolution=(1280, 720), target_format=Supported
 def process_tar_file(input_tar_path, output_tar_path, resolution, image_list):
     with (tarfile.open(input_tar_path, 'r') as input_tar,
           tarfile.open(output_tar_path, 'w') as output_tar):
-        for image_name in image_list:
-            tar_member = input_tar.getmember(image_name)
-            tar_member = next((m for m in input_tar.getmembers() if m.name == image_name), None)
+        for raw_name in image_list:
+            if raw_name not in input_tar.getnames():
+                print(f"Warning: {raw_name} not found in the TAR file.")
+                continue
 
-            if tar_member:
-                # Read raw data from the tar file
-                raw_data = input_tar.extractfile(tar_member).read()
+            raw_data = input_tar.extractfile(raw_name) \
+                                .read()
 
-                # Convert raw data to PNG format
-                png_buffer = convert_raw_to_png(raw_data, resolution)
+            png_buffer = convert_raw_to_png(raw_data, resolution)
 
-                # Add the PNG image to the output tar file
-                png_member = tarfile.TarInfo(name=image_name.replace('.raw', '.png'))
-                png_member.size = len(png_buffer.getvalue())
-                output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
+            png_name = raw_name.replace('.raw', '.png')
+            png_member = tarfile.TarInfo(name=png_name)
+            png_member.size = len(png_buffer.getvalue())
+            output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
 
 
 if __name__ == '__main__':
@@ -51,6 +51,6 @@ if __name__ == '__main__':
     output_path = '..\\output\\example_frames.tar'
     resolution_1280_720 = (1280, 720)
     with open('..\\resources\\example_frames.lst') as f:
-        image_list = f.readlines()
+        image_list = [f.strip() for f in f.readlines()]
 
     process_tar_file(tar_path, output_path, resolution_1280_720, image_list)
