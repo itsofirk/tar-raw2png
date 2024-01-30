@@ -1,9 +1,10 @@
 import io
-# import struct
 import tarfile
 from time import perf_counter
 from PIL import Image
 from enum import Enum
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 GRAYSCALE = "L"  # "L" mode for 8-bit images
 
@@ -13,12 +14,8 @@ class SupportedFormats(Enum):
     # JPEG = "JPEG"
 
 
-def convert_raw_to_png(raw_data, resolution=(1280, 720), target_format=SupportedFormats.PNG):
-    # pixel_format = f"{resolution[0] * resolution[1]}B"
-    # unpacked_data = struct.unpack(pixel_format, raw_data)
-
+def convert_raw_image(raw_data, resolution=(1280, 720), target_format=SupportedFormats.PNG):
     image = Image.frombytes(GRAYSCALE, resolution, raw_data)
-    # image.putdata(unpacked_data)
 
     image_buffer = io.BytesIO()
     image.save(image_buffer, format=target_format.value)
@@ -27,23 +24,31 @@ def convert_raw_to_png(raw_data, resolution=(1280, 720), target_format=Supported
     return image_buffer
 
 
+def process_tar_raw_member(member, tar, resolution, target_format=SupportedFormats.PNG):
+    raw_data = tar.extractfile(member).read()
+    png_buffer = convert_raw_image(raw_data, resolution, target_format)
+    return member.name.replace('.raw', f'.{target_format.value}'), png_buffer
+
+
 def process_tar_file(input_tar_path, output_tar_path, resolution, image_list):
+    image_list = set(image_list)
     with (tarfile.open(input_tar_path, 'r') as input_tar,
           tarfile.open(output_tar_path, 'w') as output_tar):
-        for raw_name in image_list:
-            if raw_name not in input_tar.getnames():
-                print(f"Warning: {raw_name} not found in the TAR file.")
-                continue
 
-            raw_data = input_tar.extractfile(raw_name) \
-                                .read()
+        members_to_convert = []
+        for member in input_tar.getmembers():
+            if member.name in image_list:
+                image_list.remove(member.name)
+                members_to_convert.append(member)
+        if image_list:
+            raise ValueError(f"Could not find images in the provided tar file: {image_list}")
 
-            png_buffer = convert_raw_to_png(raw_data, resolution)
-
-            png_name = raw_name.replace('.raw', '.png')
-            png_member = tarfile.TarInfo(name=png_name)
-            png_member.size = len(png_buffer.getvalue())
-            output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
+        _process_image = partial(process_tar_raw_member, tar=input_tar, resolution=resolution)
+        with ThreadPoolExecutor() as executor:
+            for png_name, png_buffer in executor.map(_process_image, members_to_convert):
+                png_member = tarfile.TarInfo(name=png_name)
+                png_member.size = len(png_buffer.getvalue())
+                output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
 
 
 if __name__ == '__main__':
