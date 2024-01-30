@@ -6,6 +6,8 @@ from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
+RAW = '.raw'
+
 GRAYSCALE = "L"  # mode for 8-bit images
 
 
@@ -33,23 +35,24 @@ class TarRawImagesConverter:
         png_buffer = self.convert_raw_image(raw_data, resolution)
         return self._get_new_image_name(member.name), png_buffer
 
-    def convert_tar(self, input_tar_path, resolution, image_list=None, output_tar_path=None):
+    def convert_tar(self, input_tar_path, resolution, image_list=None, output_tar_path=None, bufsize=16 * 1024):
         if output_tar_path is None:
             output_tar_path = self._get_output_name(input_tar_path)
         with (tarfile.open(input_tar_path, 'r') as input_tar,
-              tarfile.open(output_tar_path, 'w') as output_tar):
+              tarfile.open(output_tar_path, 'w', bufsize=bufsize) as output_tar):
             members_to_convert = self._get_members_to_process(input_tar, image_list)
-
+            print(f"Converting {len(members_to_convert)} images...")
             _process_image = partial(self.process_member, tar=input_tar, resolution=resolution)
             with ThreadPoolExecutor() as executor:
                 for png_name, png_buffer in executor.map(_process_image, members_to_convert):
                     png_member = tarfile.TarInfo(name=png_name)
                     png_member.size = len(png_buffer.getvalue())
                     output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
+            print(f"Done. Converted {len(members_to_convert)} images.")
 
     def _get_members_to_process(self, input_tar, image_list=None):
         if image_list is None:
-            return input_tar.getmembers()
+            return [f for f in input_tar.getmembers() if f.name.endswith(RAW)]
         image_list = set(image_list)
         members_to_convert = []
         for member in input_tar.getmembers():
@@ -69,13 +72,13 @@ class TarRawImagesConverter:
 
 if __name__ == '__main__':
     tar_path = '..\\resources\\example_frames.tar'
-    output_path = '..\\output\\example_frames.tar'
+    output_path = '..\\output\\example_frames_converted.tar'
     resolution_1280_720 = (1280, 720)
-    with open('..\\resources\\example_frames.lst') as f:
-        image_list = [f.strip() for f in f.readlines()]
+    with open('..\\resources\\example_frames.lst') as list_file:
+        image_list = [f.strip() for f in list_file.readlines()]
     png_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
-    print(f"Processing {len(image_list)} files...")
+    print(f"Converting images in {tar_path} to {output_path}...")
     start_time = perf_counter()
-    png_converter.convert_tar(tar_path, resolution_1280_720, image_list, output_path)
+    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=100*1024, image_list=image_list, output_tar_path=output_path)
     end_time = perf_counter()
     print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
