@@ -5,7 +5,7 @@ It provides a flexible and easy-to-use interface for converting images and extra
 
 ## Installation
 ```bash
-pip install tar-converter
+pip install git+https://github.com/itsofirk/tar-raw2png.git
 ```
 
 ## Usage
