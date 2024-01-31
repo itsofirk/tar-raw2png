@@ -13,7 +13,9 @@ class TarRawImagesConverter:
         self.target_format = target_format
         self.pillow_preferences = pillow_preferences
 
-    def convert_raw_image(self, raw_data: bytes, resolution: tuple[int, int], mode=GRAYSCALE):
+    @staticmethod
+    def convert_raw_image(raw_data: bytes, resolution: tuple[int, int], target_format=SupportedFormats.PNG,
+                          mode=GRAYSCALE, **pillow_preferences):
         image = Image.frombytes(mode, resolution, raw_data)
 
         # Calculate statistics
@@ -23,14 +25,16 @@ class TarRawImagesConverter:
 
         # Convert to target format
         image_buffer = io.BytesIO()
-        image.save(image_buffer, format=self.target_format.name, **self.pillow_preferences)
+        image.save(image_buffer, format=target_format.name, **pillow_preferences)
         image_buffer.seek(0)
 
         return image_buffer, average_pixel, std_dev_pixel
 
     def process_member(self, member, tar, resolution):
         raw_data = tar.extractfile(member).read()
-        png_buffer, average_pixel, std_dev_pixel = self.convert_raw_image(raw_data, resolution)
+        png_buffer, average_pixel, std_dev_pixel = self.convert_raw_image(raw_data, resolution,
+                                                                          target_format=self.target_format,
+                                                                          **self.pillow_preferences)
         statistics = {
             "average_pixel": average_pixel,
             "std_dev_pixel": std_dev_pixel,
