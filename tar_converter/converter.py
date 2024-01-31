@@ -1,6 +1,5 @@
 import io
 import tarfile
-from time import perf_counter
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -74,17 +73,3 @@ class TarRawImagesConverter:
 
     def _get_new_image_name(self, old_name):
         return old_name[:-4] + self.target_format.extension
-
-
-if __name__ == '__main__':
-    tar_path = '..\\resources\\example_frames_big.tar'
-    output_path = '..\\output\\example_frames_big_converted.tar'
-    resolution_1280_720 = (1280, 720)
-    with open('..\\resources\\example_frames.lst') as list_file:
-        image_list = [f.strip() for f in list_file.readlines()]
-    png_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
-    print(f"Converting images in {tar_path} to {output_path}...")
-    start_time = perf_counter()
-    png_converter.convert_tar(tar_path, output_path, resolution_1280_720, image_list=image_list, bufsize=16 * KB)
-    end_time = perf_counter()
-    print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
