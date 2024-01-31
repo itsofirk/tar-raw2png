@@ -17,11 +17,12 @@ class TarRawImagesConverter:
     def convert_raw_image(self, raw_data: bytes, resolution: tuple[int, int], mode=GRAYSCALE):
         image = Image.frombytes(mode, resolution, raw_data)
 
-        # Calculate average pixel value and standard deviation
+        # Calculate statistics
         pixels = np.array(image).flatten()
         average_pixel = np.mean(pixels)
         std_dev_pixel = np.std(pixels)
 
+        # Convert to target format
         image_buffer = io.BytesIO()
         image.save(image_buffer, format=self.target_format.name, **self.pillow_preferences)
         image_buffer.seek(0)
