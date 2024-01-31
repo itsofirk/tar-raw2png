@@ -10,10 +10,24 @@ from tar_converter.consts import SupportedFormats, GRAYSCALE, KB
 
 class TarRawImagesConverter:
     def __init__(self, target_format=SupportedFormats.PNG, **pillow_preferences):
+        """
+        A class for converting RAW images in a tar file to images in another format.
+        :param target_format: a supported format. use tar_converter.consts.SupportedFormats
+        :param pillow_preferences: any additional preferences that should be passed to Pillow's Image.save()
+        """
         self.target_format = target_format
         self.pillow_preferences = pillow_preferences
 
     def convert_raw_image(self, raw_data: bytes, resolution: tuple[int, int], mode=GRAYSCALE):
+        """
+        Converts a RAW image to one of the supported formats and returns the image.
+        The function also returns the average and standard deviation of the pixel values.
+
+        :param raw_data: raw image data
+        :param resolution: the image resolution
+        :param mode: the image mode. for further information, see https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-modes
+        :return: the converted image in a BytesIO object, the average pixel value, and the standard deviation
+        """
         image = Image.frombytes(mode, resolution, raw_data)
 
         # Calculate statistics
@@ -29,6 +43,9 @@ class TarRawImagesConverter:
         return image_buffer, average_pixel, std_dev_pixel
 
     def process_member(self, member, tar, resolution):
+        """
+        Processes a single member of the tar file.
+        """
         raw_data = tar.extractfile(member).read()
         png_buffer, average_pixel, std_dev_pixel = self.convert_raw_image(raw_data, resolution)
         statistics = {
@@ -39,6 +56,15 @@ class TarRawImagesConverter:
         return statistics, png_buffer
 
     def convert_tar(self, input_tar_path, output_tar_path, resolution, image_list=None, bufsize=16 * KB):
+        """
+        Converts images in a tar file to another format and saves the images in a new tar file.
+        :param input_tar_path: the path to the input tar file
+        :param output_tar_path: the path to the output tar file
+        :param resolution: a tuple of the resolution of the images
+        :param image_list: a specific list of images to convert. if not provided, all images will be converted.
+        :param bufsize: the buffer size to use when reading from the tar file.
+        :return: the path to the output tar file, the average pixel value per image, and the standard deviation per image
+        """
         average_pixels = []
         std_dev_pixels = []
         with (tarfile.open(input_tar_path, 'r', bufsize=bufsize) as input_tar,
@@ -58,6 +84,9 @@ class TarRawImagesConverter:
         print(f"Standard deviation pixel values: {std_dev_pixels}")
 
     def _get_members_to_process(self, input_tar, image_list=None):
+        """
+        A helper function to get the list of members to process.
+        """
         if image_list is None:
             return [f for f in input_tar.getmembers()
                     if f.name.endswith(SupportedFormats.RAW.extension)]
@@ -72,4 +101,7 @@ class TarRawImagesConverter:
         return members_to_convert
 
     def _get_new_image_name(self, old_name):
+        """
+        A helper function to get the new name of the image.
+        """
         return old_name[:-4] + self.target_format.extension
