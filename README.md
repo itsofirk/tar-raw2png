@@ -16,8 +16,11 @@ from tar_converter import TarRawImagesConverter, SupportedFormats
 
 ### Create a converter instance
 ```python
-png_converter = TarRawImagesConverter(SupportedFormats.PNG)  # use compress_level=0 for faster conversion
-png_no_compression_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)  # use compress_level=0 for faster conversion
+png_converter = TarRawImagesConverter(SupportedFormats.PNG)
+
+# use compress_level=0 for faster conversion
+png_no_compression_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
+
 jpg_converter = TarRawImagesConverter(SupportedFormats.JPEG)
 ```
 
