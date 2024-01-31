@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import numpy as np
 
-from tar_reader.consts import SupportedFormats, GRAYSCALE, KB
+from tar_converter.consts import SupportedFormats, GRAYSCALE, KB
 
 
 class TarRawImagesConverter:
