@@ -1,4 +1,6 @@
 import unittest
+from unittest.mock import Mock, patch
+
 from tar_converter.converter import TarRawImagesConverter
 
 
@@ -20,11 +22,27 @@ class TarRawImagesConverterTests(unittest.TestCase):
 
         image_buffer, _, _ = self.converter.convert_raw_image(raw_data, resolution, mode)
 
+        # Assertions
         self.assertEqual(image_buffer.getvalue(), expected_data)
 
     def test_process_member(self):
-        # TODO: Implement test for process_member method
-        pass
+        mock_tar = Mock()
+        mock_member = Mock()
+        mock_member.name = "test_image.raw"
+        mock_tar.extractfile.return_value.read.return_value = b"raw_data"
+
+        self.converter.convert_raw_image = Mock(return_value=(b"png_data", 45.6, 12.3))
+
+        statistics, png_buffer = self.converter.process_member(mock_member, mock_tar, None)
+
+        # Assertions
+        expected_statistics = {
+            "average_pixel": 45.6,
+            "std_dev_pixel": 12.3,
+            "new_name": "test_image.png"
+        }
+        self.assertEqual(statistics, expected_statistics)
+        self.assertEqual(png_buffer, b"png_data")
 
     def test_get_new_image_name(self):
         # TODO: Implement test for _get_new_image_name method
