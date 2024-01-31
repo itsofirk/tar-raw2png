@@ -2,18 +2,11 @@ import io
 import tarfile
 from time import perf_counter
 from PIL import Image
-from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import numpy as np
 
-RAW = '.raw'
-GRAYSCALE = "L"  # mode for 8-bit images
-
-
-class SupportedFormats(Enum):
-    PNG = "PNG"
-    # JPEG = "JPEG"
+from tar_reader.consts import SupportedFormats, RAW, GRAYSCALE, KB, NEW_TAR_SUFFIX, TAR
 
 
 class TarRawImagesConverter:
@@ -80,21 +73,21 @@ class TarRawImagesConverter:
         return members_to_convert
 
     def _get_output_name(self, input_tar_path):
-        return input_tar_path.replace('.tar', '_converted.tar')
+        return input_tar_path.replace(TAR, NEW_TAR_SUFFIX)
 
     def _get_new_image_name(self, old_name):
         return f'{old_name[:-4]}.{self.target_format.lower()}'
 
 
 if __name__ == '__main__':
-    tar_path = '..\\resources\\example_frames_big.tar'
-    output_path = '..\\output\\example_frames_big_converted.tar'
+    tar_path = '..\\resources\\example_frames.tar'
+    output_path = '..\\output\\example_frames_converted.tar'
     resolution_1280_720 = (1280, 720)
     with open('..\\resources\\example_frames.lst') as list_file:
         image_list = [f.strip() for f in list_file.readlines()]
     png_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
     print(f"Converting images in {tar_path} to {output_path}...")
     start_time = perf_counter()
-    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=16*1024, image_list=None, output_tar_path=output_path)
+    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=16 * KB, image_list=image_list, output_tar_path=output_path)
     end_time = perf_counter()
     print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
