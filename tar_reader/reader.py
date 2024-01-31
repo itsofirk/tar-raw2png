@@ -18,22 +18,22 @@ class TarRawImagesConverter:
         image = Image.frombytes(mode, resolution, raw_data)
 
         # Calculate average pixel value and standard deviation
-        pixel_values = np.array(image).flatten()
-        average_pixel_value = np.mean(pixel_values)
-        std_dev_pixel_value = np.std(pixel_values)
+        pixels = np.array(image).flatten()
+        average_pixel = np.mean(pixels)
+        std_dev_pixel = np.std(pixels)
 
         image_buffer = io.BytesIO()
         image.save(image_buffer, format=self.target_format, **self.pillow_preferences)
         image_buffer.seek(0)
 
-        return image_buffer, average_pixel_value, std_dev_pixel_value
+        return image_buffer, average_pixel, std_dev_pixel
 
     def process_member(self, member, tar, resolution):
         raw_data = tar.extractfile(member).read()
-        png_buffer, average_pixel_value, std_dev_pixel_value = self.convert_raw_image(raw_data, resolution)
+        png_buffer, average_pixel, std_dev_pixel = self.convert_raw_image(raw_data, resolution)
         statistics = {
-            "average_pixel_value": average_pixel_value,
-            "std_dev_pixel_value": std_dev_pixel_value,
+            "average_pixel": average_pixel,
+            "std_dev_pixel": std_dev_pixel,
             "new_name": self._get_new_image_name(member.name)
         }
         return statistics, png_buffer
@@ -41,8 +41,8 @@ class TarRawImagesConverter:
     def convert_tar(self, input_tar_path, resolution, image_list=None, output_tar_path=None, bufsize=16 * 1024):
         if output_tar_path is None:
             output_tar_path = self._get_output_name(input_tar_path)
-        average_pixel_values = []
-        std_dev_pixel_values = []
+        average_pixels = []
+        std_dev_pixels = []
         with (tarfile.open(input_tar_path, 'r', bufsize=bufsize) as input_tar,
               tarfile.open(output_tar_path, 'w', bufsize=bufsize) as output_tar):
             members_to_convert = self._get_members_to_process(input_tar, image_list)
@@ -53,11 +53,11 @@ class TarRawImagesConverter:
                     png_member = tarfile.TarInfo(name=metadata["new_name"])
                     png_member.size = len(png_buffer.getvalue())
                     output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
-                    average_pixel_values.append(metadata["average_pixel_value"])
-                    std_dev_pixel_values.append(metadata["std_dev_pixel_value"])
+                    average_pixels.append(metadata["average_pixel"])
+                    std_dev_pixels.append(metadata["std_dev_pixel"])
             print(f"Done. Converted {len(members_to_convert)} images.")
-        print(f"Average pixel values: {average_pixel_values}")
-        print(f"Standard deviation pixel values: {std_dev_pixel_values}")
+        print(f"Average pixel values: {average_pixels}")
+        print(f"Standard deviation pixel values: {std_dev_pixels}")
 
     def _get_members_to_process(self, input_tar, image_list=None):
         if image_list is None:
