@@ -88,6 +88,7 @@ if __name__ == '__main__':
     png_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
     print(f"Converting images in {tar_path} to {output_path}...")
     start_time = perf_counter()
-    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=16 * KB, image_list=image_list, output_tar_path=output_path)
+    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=16 * KB, image_list=image_list,
+                              output_tar_path=output_path)
     end_time = perf_counter()
     print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
