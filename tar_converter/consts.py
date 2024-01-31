@@ -4,7 +4,7 @@ from enum import Enum
 class SupportedFormats(Enum):
     RAW = ".raw"
     PNG = ".png"
-    # JPEG = ".jpg"
+    JPEG = ".jpg"
 
     @property
     def extension(self):
