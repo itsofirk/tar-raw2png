@@ -6,12 +6,12 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import numpy as np
 
-from tar_reader.consts import SupportedFormats, RAW, GRAYSCALE, KB, NEW_TAR_SUFFIX, TAR
+from tar_reader.consts import SupportedFormats, GRAYSCALE, KB
 
 
 class TarRawImagesConverter:
     def __init__(self, target_format=SupportedFormats.PNG, **pillow_preferences):
-        self.target_format = target_format.value
+        self.target_format = target_format
         self.pillow_preferences = pillow_preferences
 
     def convert_raw_image(self, raw_data: bytes, resolution: tuple[int, int], mode=GRAYSCALE):
@@ -23,7 +23,7 @@ class TarRawImagesConverter:
         std_dev_pixel = np.std(pixels)
 
         image_buffer = io.BytesIO()
-        image.save(image_buffer, format=self.target_format, **self.pillow_preferences)
+        image.save(image_buffer, format=self.target_format.name, **self.pillow_preferences)
         image_buffer.seek(0)
 
         return image_buffer, average_pixel, std_dev_pixel
@@ -38,9 +38,7 @@ class TarRawImagesConverter:
         }
         return statistics, png_buffer
 
-    def convert_tar(self, input_tar_path, resolution, image_list=None, output_tar_path=None, bufsize=16 * 1024):
-        if output_tar_path is None:
-            output_tar_path = self._get_output_name(input_tar_path)
+    def convert_tar(self, input_tar_path, output_tar_path, resolution, image_list=None, bufsize=16 * KB):
         average_pixels = []
         std_dev_pixels = []
         with (tarfile.open(input_tar_path, 'r', bufsize=bufsize) as input_tar,
@@ -61,7 +59,8 @@ class TarRawImagesConverter:
 
     def _get_members_to_process(self, input_tar, image_list=None):
         if image_list is None:
-            return [f for f in input_tar.getmembers() if f.name.endswith(RAW)]
+            return [f for f in input_tar.getmembers()
+                    if f.name.endswith(SupportedFormats.RAW.extension)]
         image_list = set(image_list)
         members_to_convert = []
         for member in input_tar.getmembers():
@@ -72,23 +71,19 @@ class TarRawImagesConverter:
             raise ValueError(f"Could not find images in the provided tar file: {image_list}")
         return members_to_convert
 
-    def _get_output_name(self, input_tar_path):
-        return input_tar_path.replace(TAR, NEW_TAR_SUFFIX)
-
     def _get_new_image_name(self, old_name):
-        return f'{old_name[:-4]}.{self.target_format.lower()}'
+        return old_name[:-4] + self.target_format.extension
 
 
 if __name__ == '__main__':
-    tar_path = '..\\resources\\example_frames.tar'
-    output_path = '..\\output\\example_frames_converted.tar'
+    tar_path = '..\\resources\\example_frames_big.tar'
+    output_path = '..\\output\\example_frames_big_converted.tar'
     resolution_1280_720 = (1280, 720)
     with open('..\\resources\\example_frames.lst') as list_file:
         image_list = [f.strip() for f in list_file.readlines()]
     png_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
     print(f"Converting images in {tar_path} to {output_path}...")
     start_time = perf_counter()
-    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=16 * KB, image_list=image_list,
-                              output_tar_path=output_path)
+    png_converter.convert_tar(tar_path, output_path, resolution_1280_720, image_list=image_list, bufsize=16 * KB)
     end_time = perf_counter()
     print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
