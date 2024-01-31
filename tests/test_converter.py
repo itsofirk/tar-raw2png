@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import Mock, patch
-
+from unittest.mock import Mock
+from tarfile import TarInfo
 from tar_converter.converter import TarRawImagesConverter
 
 
@@ -44,13 +44,41 @@ class TarRawImagesConverterTests(unittest.TestCase):
         self.assertEqual(statistics, expected_statistics)
         self.assertEqual(png_buffer, b"png_data")
 
-    def test_get_new_image_name(self):
-        # TODO: Implement test for _get_new_image_name method
-        pass
+    def test_get_members_to_process_with_image_list(self):
+        input_tar_mock = Mock()
 
-    def test_get_members_to_process(self):
-        # TODO: Implement test for _get_members_to_process method
-        pass
+        members = [TarInfo("image1.raw"), TarInfo("image2.jpg"), TarInfo("image3.raw")]
+        input_tar_mock.getmembers.return_value = members
+        image_list = ["image1.raw", "image3.raw"]
+
+        members_to_convert = self.converter._get_members_to_process(input_tar_mock, image_list)
+
+        expected_members_to_convert = [members[0], members[2]]
+
+        # Assertions
+        self.assertEqual(members_to_convert, expected_members_to_convert)
+
+    def test_get_members_to_process_without_image_list(self):
+        input_tar_mock = Mock()
+
+        members = [TarInfo("image1.raw"), TarInfo("image2.jpg"), TarInfo("image3.raw")]
+        input_tar_mock.getmembers.return_value = members
+
+        members_to_convert = self.converter._get_members_to_process(input_tar_mock)
+
+        expected_members_to_convert = [members[0], members[2]]
+        self.assertEqual(members_to_convert, expected_members_to_convert)
+
+    def test_get_members_to_process_with_missing_images(self):
+        input_tar_mock = Mock()
+
+        members = [TarInfo("image1.raw"), TarInfo("image2.jpg"), TarInfo("image3.raw")]
+        input_tar_mock.getmembers.return_value = members
+        image_list = ["image1.raw", "image4.raw"]
+
+        # Assertions
+        with self.assertRaises(ValueError):
+            self.converter._get_members_to_process(input_tar_mock, image_list)
 
     def test_convert_tar(self):
         # TODO: Implement test for convert_tar method
