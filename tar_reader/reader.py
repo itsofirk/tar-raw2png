@@ -5,9 +5,9 @@ from PIL import Image
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+import numpy as np
 
 RAW = '.raw'
-
 GRAYSCALE = "L"  # mode for 8-bit images
 
 
@@ -24,31 +24,47 @@ class TarRawImagesConverter:
     def convert_raw_image(self, raw_data: bytes, resolution: tuple[int, int], mode=GRAYSCALE):
         image = Image.frombytes(mode, resolution, raw_data)
 
+        # Calculate average pixel value and standard deviation
+        pixel_values = np.array(image).flatten()
+        average_pixel_value = np.mean(pixel_values)
+        std_dev_pixel_value = np.std(pixel_values)
+
         image_buffer = io.BytesIO()
         image.save(image_buffer, format=self.target_format, **self.pillow_preferences)
         image_buffer.seek(0)
 
-        return image_buffer
+        return image_buffer, average_pixel_value, std_dev_pixel_value
 
     def process_member(self, member, tar, resolution):
         raw_data = tar.extractfile(member).read()
-        png_buffer = self.convert_raw_image(raw_data, resolution)
-        return self._get_new_image_name(member.name), png_buffer
+        png_buffer, average_pixel_value, std_dev_pixel_value = self.convert_raw_image(raw_data, resolution)
+        statistics = {
+            "average_pixel_value": average_pixel_value,
+            "std_dev_pixel_value": std_dev_pixel_value,
+            "new_name": self._get_new_image_name(member.name)
+        }
+        return statistics, png_buffer
 
     def convert_tar(self, input_tar_path, resolution, image_list=None, output_tar_path=None, bufsize=16 * 1024):
         if output_tar_path is None:
             output_tar_path = self._get_output_name(input_tar_path)
-        with (tarfile.open(input_tar_path, 'r') as input_tar,
+        average_pixel_values = []
+        std_dev_pixel_values = []
+        with (tarfile.open(input_tar_path, 'r', bufsize=bufsize) as input_tar,
               tarfile.open(output_tar_path, 'w', bufsize=bufsize) as output_tar):
             members_to_convert = self._get_members_to_process(input_tar, image_list)
-            print(f"Converting {len(members_to_convert)} images...")
             _process_image = partial(self.process_member, tar=input_tar, resolution=resolution)
+            print(f"Converting {len(members_to_convert)} images...")
             with ThreadPoolExecutor() as executor:
-                for png_name, png_buffer in executor.map(_process_image, members_to_convert):
-                    png_member = tarfile.TarInfo(name=png_name)
+                for metadata, png_buffer in executor.map(_process_image, members_to_convert):
+                    png_member = tarfile.TarInfo(name=metadata["new_name"])
                     png_member.size = len(png_buffer.getvalue())
                     output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
+                    average_pixel_values.append(metadata["average_pixel_value"])
+                    std_dev_pixel_values.append(metadata["std_dev_pixel_value"])
             print(f"Done. Converted {len(members_to_convert)} images.")
+        print(f"Average pixel values: {average_pixel_values}")
+        print(f"Standard deviation pixel values: {std_dev_pixel_values}")
 
     def _get_members_to_process(self, input_tar, image_list=None):
         if image_list is None:
@@ -71,14 +87,14 @@ class TarRawImagesConverter:
 
 
 if __name__ == '__main__':
-    tar_path = '..\\resources\\example_frames.tar'
-    output_path = '..\\output\\example_frames_converted.tar'
+    tar_path = '..\\resources\\example_frames_big.tar'
+    output_path = '..\\output\\example_frames_big_converted.tar'
     resolution_1280_720 = (1280, 720)
     with open('..\\resources\\example_frames.lst') as list_file:
         image_list = [f.strip() for f in list_file.readlines()]
     png_converter = TarRawImagesConverter(SupportedFormats.PNG, compress_level=0)
     print(f"Converting images in {tar_path} to {output_path}...")
     start_time = perf_counter()
-    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=100*1024, image_list=image_list, output_tar_path=output_path)
+    png_converter.convert_tar(tar_path, resolution_1280_720, bufsize=16*1024, image_list=None, output_tar_path=output_path)
     end_time = perf_counter()
     print(f"Done! Time taken: {end_time - start_time:.2f} seconds.")
