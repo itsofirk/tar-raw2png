@@ -80,10 +80,6 @@ class TarRawImagesConverterTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.converter._get_members_to_process(input_tar_mock, image_list)
 
-    def test_convert_tar(self):
-        # TODO: Implement test for convert_tar method
-        pass
-
 
 if __name__ == '__main__':
     unittest.main()
