@@ -1,11 +1,14 @@
 import io
 import tarfile
+import logging
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import numpy as np
 
 from tar_converter.consts import SupportedFormats, GRAYSCALE, KB
+
+logger = logging.getLogger(__name__)
 
 
 class TarRawImagesConverter:
@@ -71,7 +74,7 @@ class TarRawImagesConverter:
               tarfile.open(output_tar_path, 'w', bufsize=bufsize) as output_tar):
             members_to_convert = self._get_members_to_process(input_tar, image_list)
             _process_image = partial(self.process_member, tar=input_tar, resolution=resolution)
-            print(f"Converting {len(members_to_convert)} images...")
+            logger.info(f"Converting {len(members_to_convert)} images...")
             with ThreadPoolExecutor() as executor:
                 for metadata, png_buffer in executor.map(_process_image, members_to_convert):
                     png_member = tarfile.TarInfo(name=metadata["new_name"])
@@ -79,9 +82,8 @@ class TarRawImagesConverter:
                     output_tar.addfile(png_member, io.BytesIO(png_buffer.getvalue()))
                     average_pixels.append(metadata["average_pixel"])
                     std_dev_pixels.append(metadata["std_dev_pixel"])
-            print(f"Done. Converted {len(members_to_convert)} images.")
-        print(f"Average pixel values: {average_pixels}")
-        print(f"Standard deviation pixel values: {std_dev_pixels}")
+            logger.info(f"Done. Converted {len(members_to_convert)} images.")
+        return output_tar_path, average_pixels, std_dev_pixels
 
     def _get_members_to_process(self, input_tar, image_list=None):
         """
