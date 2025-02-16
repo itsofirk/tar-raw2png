@@ -6,7 +6,7 @@ setup(
     description='A library for converting RAW images in a tar file to PNG images',
     packages=find_packages(),
     install_requires=[
-        'Pillow==10.2.0',
+        'Pillow==10.3.0',
         'numpy==1.26.3',
     ],
 )
